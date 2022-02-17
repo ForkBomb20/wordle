@@ -9,7 +9,6 @@ words for play.
 from math import log2
 import itertools
 
-
 # A list of all 243 possible combinations of greens, yellows and grays
 # a word could have when played for use in entropy function
 PATTERNS = list(itertools.product("gyn", repeat=5))
@@ -17,22 +16,22 @@ PATTERNS = list(itertools.product("gyn", repeat=5))
 
 # entropy function that takes in a word to be played and returns the
 # average bits of information likely to result from it
-def entropy(word: str) -> float:
+def entropy(word: str, allowed: list) -> float:
     e_sum = 0
     for pattern in PATTERNS:
-        greens = {}
-        yellows = {}
+        greens = []
+        yellows = []
         grays = []
 
         for i in range(len(pattern)):
             if pattern[i] == "g":
-                greens[word[i]] = i
+                greens.append((word[i], i))
             elif pattern[i] == "y":
-                yellows[word[i]] = i
+                yellows.append((word[i], i))
             else:
                 grays.append(word[i])
 
-        p = probability(greens, yellows, grays)
+        p = probability(greens, yellows, grays, allowed)
         if p != 0:
             i = information(p)
             e_sum += p * i
@@ -49,8 +48,8 @@ def information(p: float) -> float:
 # green, yellow, and gray letters for a Wordle play and computes all possible
 # remaining words using possible function and return the probability by
 # dividing the new length of possible words by the old
-def probability(greens: dict, yellows: dict, grays: list) -> float:
-    po = possible(greens, yellows, grays)
+def probability(greens: list, yellows: list, grays: list, allowed: list) -> float:
+    po = possible(greens, yellows, grays, allowed)
     prob = len(po) / len(allowed)
     return prob
 
@@ -58,59 +57,45 @@ def probability(greens: dict, yellows: dict, grays: list) -> float:
 # Possible function supplementing probability function that return all the
 # words from the wordle list that could match the greens, yellows, and grays
 # given as input
-def possible(greens: dict, yellows: dict, grays: list) -> list:
+def possible(greens: list, yellows: list, grays: list, allowed: list) -> list:
+    def hasDuplicates(letters):
+        letters = [letter for (letter, ind) in letters]
+        return len(letters) != len(set(letters))
+
+    def getDuplicates(letters):
+        duplicates = []
+        letters = [letter for (letter, ind) in letters]
+        for letter in letters:
+            if letters.count(letter) > 1:
+                duplicates.append(letter)
+
+        return set(duplicates)
+
     possible_words = []
+
+    for (letter, ind) in greens:
+        if letter in grays: grays = [l for l in grays if l != letter]
+
+    for (letter, ind) in yellows:
+        if letter in grays: grays = [l for l in grays if l != letter]
 
     for word in allowed:
         # Boolean for whether the current word has all green letters in the proper positions
-        right_greens = all([word[greens[letter]] == letter for letter in greens])
+        right_greens = all([(word[ind] == letter) or (word[ind] == letter and letter in word) for (letter, ind) in greens])
         # Boolean for whether the current word does not have yellow letters in the same place
-        no_yellows = all([word[yellows[letter]] != letter for letter in yellows])
+        no_yellows = all([word[ind] != letter for (letter, ind) in yellows])
         # Boolean for whether the current word has yellows in it
-        has_yellows = all([letter in word for letter in yellows])
+        if hasDuplicates(yellows):
+            yellow_letters = [letter for (letter, ind) in yellows]
+            duplicates = getDuplicates(yellows)
+            has_yellows = all([yellow_letters.count(letter) == word.count(letter) for letter in duplicates])
+
+        else:
+            has_yellows = all([letter in word and word.count(letter) == 1 for (letter, ind) in yellows])
         # Boolean for whether the current word does not have any gray letters
         no_grays = all([(not (letter in word)) for letter in grays])
 
         if right_greens and no_yellows and has_yellows and no_grays:
             possible_words.append(word)
 
-
     return possible_words
-
-
-def main():
-    playing = True
-
-    greens = {}
-    yellows = {}
-    grays = []
-
-    while playing:
-        word = input("Please enter the word you played").strip()
-        letters = [char for char in word]
-
-        for i in range(len(letters)):
-            color = input(f"What color is {letters[i]}? g (green), y (yellow), n (gray)").strip()
-            if color == "g" and not letters[i] in greens:
-                greens[letters[i]] = i
-            elif color == "y" and not letters[i] in yellows:
-                yellows[letters[i]] = i
-            elif color == "n" and (not (letters[i] in grays)):
-                grays.append(letters[i])
-
-        for letter in greens:
-            if letter in grays: grays = [l for l in grays if l != letter]
-
-        for letter in yellows:
-            if letter in grays: grays = [l for l in grays if l != letter]
-
-        allowed = possible(greens, yellows, grays)
-        es = [entropy(word) for word in allowed]
-        max_e = max(es)
-        ind = es.index(max_e)
-
-        print(f"Play {allowed[ind]}\nEntropy: {max_e}")
-
-
-if __name__ == "__main__":
-    main()

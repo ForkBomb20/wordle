@@ -18,8 +18,8 @@ allowed = data["allowed"]
 def main():
     playing = True
 
-    greens = {}
-    yellows = {}
+    greens = []
+    yellows = []
     grays = []
 
     while playing:
@@ -28,26 +28,26 @@ def main():
 
         for i in range(len(letters)):
             color = input(f"What color is {letters[i]}? g (green), y (yellow), n (gray)").strip()
-            if color == "g" and not letters[i] in greens:
-                greens[letters[i]] = i
-            elif color == "y" and not letters[i] in yellows:
-                yellows[letters[i]] = i
-            elif color == "n" and (not (letters[i] in grays)):
+            if color == "g" and not (letters[i], i) in greens:
+                greens.append((letters[i], i))
+            elif color == "y" and not (letters[i], i) in yellows:
+                yellows.append((letters[i], i))
+            elif color == "n" and (not ((letters[i], i) in grays)):
                 grays.append(letters[i])
 
-        for letter in greens:
-            if letter in grays: grays = [l for l in grays if l != letter]
-
-        for letter in yellows:
-            if letter in grays: grays = [l for l in grays if l != letter]
-
-        allowed = possible(greens, yellows, grays)
-        es = [entropy(word) for word in allowed]
+        global allowed
+        allowed = possible(greens, yellows, grays, allowed)
+        es = [entropy(word, allowed) for word in allowed]
         max_e = max(es)
         ind = es.index(max_e)
 
         print(f"Play {allowed[ind]}\nEntropy: {max_e}\n")
-        playing = input("Would you like to stop (s)?").strip().lower() == "s"
+        print(f"Allowed words: {allowed}")
+        playing = input("Would you like to stop (s)?").strip().lower() != "s"
+
+        grays.clear()
+        yellows.clear()
+        greens.clear()
 
 
 if __name__ == "__main__":
